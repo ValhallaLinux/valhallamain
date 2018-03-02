@@ -1,1 +1,53 @@
 #first build binutils, gcc, linux-api, glibc
+pkgname=binutils-bootstrap
+name=binutils
+pkgver=2.30
+pkgrel=1
+pkgdesc="A set of programs to assemble and manipulate binary and object files"
+arch=(x86_64)
+license=(GPL-3.0)
+groups=('bootstrap')
+source=("https://ftp.gnu.org/gnu/$name/$name-$pkgver.tar.xz"
+        "patches/0001-x86-64_Dont_pass_output_bfd_to_info-callbacks-minfo.patch")
+sha256sums(''
+           '')
+
+prepare() {
+  cd $build-$pkgver
+  mkdir -p $name-build
+
+  sed -i "/ac_cpp=/s/\$CPPFLAGS/\$CPPFLAGS -O2/" libiberty/configure
+  patch -pi -i $srcdir/patches/0001-x86-64_Dont_pass_output_bfd_to_info-callbacks-minfo.patch
+
+  cd $name-build
+
+  ../configure \
+    --prefix=/usr
+    --libdir=/usr/lib64
+    --with-lib-path="/usr/lib64:/lib64:/usr/lib32:/lib32" \
+    --enable-lto \
+    --enable-multilib \
+    --enable-gold \
+    --enable-shared \
+    --disable-static \
+    --disable-werror \
+    --enable-deterministic-archives \
+    --enable-plugins \
+    --enable-ld=default \
+    --enable-secureplt \
+    --enable-relro
+}
+
+build() {
+  cd $build-$pkgver/  
+  make tooldir=/usr -C $name-build
+}
+
+package() {
+  cd $build-$pkgver/
+  make prefix="$pkgdir/usr" tooldir="$pkgdir/usr" install -C $name-build
+  
+  #install libiberty headers
+  install -m 00644 include/libiberty.h $pkgdir/usr/include
+  install -m 00644 $name-build/libiberty/libiberty.a $pkgdir/usr/lib64
+}
